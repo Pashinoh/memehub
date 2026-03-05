@@ -44,6 +44,8 @@ return [
     'settings_version_title' => 'Version Information',
     'settings_version_desc' => 'Current application release details.',
     'settings_app_version' => 'App Version',
+    'settings_changelog_title' => 'Latest Changelog',
+    'settings_changelog_empty' => 'No changelog entries available yet.',
 
     'settings_change_email_title' => 'Change Email',
     'settings_change_email_desc' => 'Update your account email address.',

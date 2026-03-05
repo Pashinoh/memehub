@@ -44,6 +44,8 @@ return [
     'settings_version_title' => 'Informasi Versi',
     'settings_version_desc' => 'Detail rilis aplikasi saat ini.',
     'settings_app_version' => 'Versi Aplikasi',
+    'settings_changelog_title' => 'Changelog Terbaru',
+    'settings_changelog_empty' => 'Belum ada catatan perubahan.',
 
     'settings_change_email_title' => 'Ganti Email',
     'settings_change_email_desc' => 'Perbarui alamat email akun Anda.',

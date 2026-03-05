@@ -221,16 +221,30 @@ class MemeController extends Controller
         return redirect()->route('memes.index')->with('status', 'Meme deleted');
     }
 
-    public function bookmark(Meme $meme)
+    public function bookmark(Meme $meme, Request $request)
     {
         auth()->user()->bookmarks()->syncWithoutDetaching([$meme->id]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'Bookmarked!',
+                'is_bookmarked' => true,
+            ]);
+        }
 
         return back()->with('status', 'Bookmarked!');
     }
 
-    public function unbookmark(Meme $meme)
+    public function unbookmark(Meme $meme, Request $request)
     {
         auth()->user()->bookmarks()->detach($meme->id);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'Bookmark removed!',
+                'is_bookmarked' => false,
+            ]);
+        }
 
         return back()->with('status', 'Bookmark removed!');
     }

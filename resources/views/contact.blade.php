@@ -4,6 +4,10 @@
             <h1 class="text-2xl font-bold text-slate-100 mb-2">Laporkan Masalah</h1>
             <p class="text-slate-300 mb-5">Isi form di bawah untuk kirim laporan. Tim admin akan segera menindaklanjuti.</p>
 
+            @if (!empty($turnstileSiteKey))
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            @endif
+
             <form method="POST" action="{{ route('contact.store') }}" class="space-y-4" enctype="multipart/form-data">
                 @csrf
 
@@ -37,6 +41,13 @@
                     <p class="mt-1 text-xs text-slate-400">Format: JPG, PNG, WEBP. Maksimal 4MB.</p>
                     @error('screenshot')<p class="mt-1 text-sm text-red-400">{{ $message }}</p>@enderror
                 </div>
+
+                @if (!empty($turnstileSiteKey))
+                    <div>
+                        <div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-theme="dark"></div>
+                        @error('cf-turnstile-response')<p class="mt-1 text-sm text-red-400">{{ $message }}</p>@enderror
+                    </div>
+                @endif
 
                 <div class="flex items-center gap-3">
                     <button type="submit" class="inline-flex items-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition">

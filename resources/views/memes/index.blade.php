@@ -125,7 +125,7 @@
 
         <div class="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
             <aside class="hidden lg:block">
-                <div class="sticky top-24 rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+                <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 lg:sticky lg:top-24">
                     <div class="mb-3">
                         <a href="{{ route('memes.index', array_filter(['sort' => request('sort', 'for_you'), 'q' => request('q')])) }}" class="flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition {{ request('tag') ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'bg-slate-800 text-slate-100' }}">
                             <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-700 text-slate-100">
@@ -180,24 +180,23 @@
                                     <button type="button" @click.stop="openAction = !openAction" class="rounded-full border border-slate-600 px-2 py-1 text-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition focus:outline-none flex items-center justify-center" title="Menu aksi">&#8942;</button>
                                     <div x-show="openAction" x-transition @click.stop class="absolute right-0 top-full z-10 mt-2 w-48 max-w-[calc(100vw-2rem)] rounded border border-slate-700 bg-slate-900 p-2 shadow-lg" style="display: none;">
                                         <div class="flex flex-col gap-1">
-                                            @if ($meme->is_bookmarked)
-                                                <form action="{{ route('memes.unbookmark', $meme) }}" method="POST">
-                                                    @csrf
+                                            <form
+                                                action="{{ $meme->is_bookmarked ? route('memes.unbookmark', $meme) : route('memes.bookmark', $meme) }}"
+                                                method="POST"
+                                                data-bookmark-ajax="true"
+                                                data-bookmark-state="{{ $meme->is_bookmarked ? '1' : '0' }}"
+                                                data-bookmark-url="{{ route('memes.bookmark', $meme) }}"
+                                                data-unbookmark-url="{{ route('memes.unbookmark', $meme) }}"
+                                            >
+                                                @csrf
+                                                @if ($meme->is_bookmarked)
                                                     @method('DELETE')
-                                                    <button type="submit" class="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-pink-50 text-pink-600">
-                                                        <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='currentColor' viewBox='0 0 20 20'><path d='M5 3a2 2 0 00-2 2v12l7-4 7 4V5a2 2 0 00-2-2H5z'/></svg>
-                                                        Remove Bookmark
-                                                    </button>
-                                                </form>
-                                            @else
-                                                <form action="{{ route('memes.bookmark', $meme) }}" method="POST">
-                                                    @csrf
-                                                    <button type="submit" class="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-pink-50 text-pink-600">
-                                                        <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 20 20' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 3a2 2 0 00-2 2v12l7-4 7 4V5a2 2 0 00-2-2H5z'/></svg>
-                                                        Bookmark
-                                                    </button>
-                                                </form>
-                                            @endif
+                                                @endif
+                                                <button type="submit" data-bookmark-button="true" class="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-slate-800 text-slate-100">
+                                                    <svg data-bookmark-icon="true" xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='{{ $meme->is_bookmarked ? 'currentColor' : 'none' }}' viewBox='0 0 20 20' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 3a2 2 0 00-2 2v12l7-4 7 4V5a2 2 0 00-2-2H5z'/></svg>
+                                                    <span data-bookmark-label="true">{{ $meme->is_bookmarked ? 'Remove Bookmark' : 'Bookmark' }}</span>
+                                                </button>
+                                            </form>
                                             @if ($meme->user_id !== auth()->id())
                                                 <details class="group">
                                                     <summary class="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-red-50 text-red-600 cursor-pointer list-none">
@@ -416,6 +415,101 @@
                         if (button) {
                             applyUpvoteState(button, previousPressed);
                         }
+                    } finally {
+                        form.dataset.loading = '0';
+                        if (button) {
+                            button.disabled = false;
+                        }
+                    }
+                });
+            });
+
+            const applyBookmarkState = function (form, bookmarked) {
+                if (!form) {
+                    return;
+                }
+
+                form.dataset.bookmarkState = bookmarked ? '1' : '0';
+                form.action = bookmarked ? form.dataset.unbookmarkUrl : form.dataset.bookmarkUrl;
+
+                const button = form.querySelector('[data-bookmark-button="true"]');
+                const label = form.querySelector('[data-bookmark-label="true"]');
+                const icon = form.querySelector('[data-bookmark-icon="true"]');
+                const methodInput = form.querySelector('input[name="_method"]');
+
+                if (bookmarked) {
+                    if (!methodInput) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = '_method';
+                        input.value = 'DELETE';
+                        form.appendChild(input);
+                    }
+                } else if (methodInput) {
+                    methodInput.remove();
+                }
+
+                if (label) {
+                    label.textContent = bookmarked ? 'Remove Bookmark' : 'Bookmark';
+                }
+
+                if (icon) {
+                    icon.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
+                    icon.style.fill = bookmarked ? 'currentColor' : 'none';
+                }
+
+                if (button) {
+                    button.disabled = false;
+                }
+            };
+
+            document.querySelectorAll('form[data-bookmark-ajax="true"]').forEach(function (form) {
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (form.dataset.loading === '1') {
+                        return;
+                    }
+
+                    form.dataset.loading = '1';
+
+                    const currentState = form.dataset.bookmarkState === '1';
+                    const nextState = !currentState;
+                    const button = form.querySelector('[data-bookmark-button="true"]');
+                    const requestUrl = nextState ? form.dataset.bookmarkUrl : form.dataset.unbookmarkUrl;
+                    const payloadFormData = new FormData(form);
+
+                    if (button) {
+                        button.disabled = true;
+                    }
+
+                    applyBookmarkState(form, nextState);
+
+                    try {
+                        const response = await fetch(requestUrl, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken || '',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: payloadFormData,
+                            credentials: 'same-origin',
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed request');
+                        }
+
+                        const payload = await response.json();
+
+                        if (typeof payload.is_bookmarked !== 'undefined') {
+                            applyBookmarkState(form, Boolean(payload.is_bookmarked));
+                        }
+                    } catch (error) {
+                        console.error('Bookmark request failed', error);
+                        applyBookmarkState(form, currentState);
                     } finally {
                         form.dataset.loading = '0';
                         if (button) {

@@ -73,9 +73,25 @@
                         <p class="mt-1 text-sm text-slate-300">{{ __('ui.settings_version_desc') }}</p>
                     </header>
 
-                    <div class="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3">
+                    <div class="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 space-y-3">
                         <p class="text-sm text-slate-300">{{ __('ui.settings_app_version') }}</p>
-                        <p class="mt-1 text-base font-semibold text-slate-100">v{{ config('app.version') }}</p>
+                        <p class="mt-1 text-base font-semibold text-slate-100">v{{ $appVersion }}</p>
+
+                        <div class="border-t border-slate-700/80 pt-3">
+                        <p class="text-sm text-slate-300">{{ __('ui.settings_changelog_title') }}</p>
+                        @if (!empty($changelogVersion))
+                            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $changelogVersion }} @if(!empty($changelogDate))<span class="text-slate-400 font-normal">({{ $changelogDate }})</span>@endif</p>
+                            <ul class="mt-2 space-y-1 text-sm text-slate-300">
+                                @forelse ($changelogItems as $item)
+                                    <li>- {{ $item }}</li>
+                                @empty
+                                    <li>{{ __('ui.settings_changelog_empty') }}</li>
+                                @endforelse
+                            </ul>
+                        @else
+                            <p class="mt-1 text-sm text-slate-400">{{ __('ui.settings_changelog_empty') }}</p>
+                        @endif
+                        </div>
                     </div>
                 </section>
             </div>

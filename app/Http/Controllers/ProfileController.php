@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -24,9 +25,63 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
+        $changelog = $this->getLatestChangelog();
+
         return view('profile.edit', [
             'user' => $request->user(),
+            'appVersion' => (string) config('app.version', '1.0.0'),
+            'changelogVersion' => $changelog['version'],
+            'changelogDate' => $changelog['date'],
+            'changelogItems' => $changelog['items'],
         ]);
+    }
+
+    private function getLatestChangelog(): array
+    {
+        $path = base_path('CHANGELOG.md');
+
+        if (!File::exists($path)) {
+            return [
+                'version' => null,
+                'date' => null,
+                'items' => [],
+            ];
+        }
+
+        $content = (string) File::get($path);
+
+        if ($content === '') {
+            return [
+                'version' => null,
+                'date' => null,
+                'items' => [],
+            ];
+        }
+
+        if (!preg_match('/##\s*\[(.*?)\]\s*-\s*(\d{4}-\d{2}-\d{2})(.*?)(?=\n##\s*\[|\z)/s', $content, $matches)) {
+            return [
+                'version' => null,
+                'date' => null,
+                'items' => [],
+            ];
+        }
+
+        $version = trim($matches[1]);
+        $date = trim($matches[2]);
+        $sectionBody = (string) ($matches[3] ?? '');
+
+        preg_match_all('/^\-\s+(.*)$/m', $sectionBody, $itemMatches);
+        $items = collect($itemMatches[1] ?? [])
+            ->map(fn (string $item) => trim($item))
+            ->filter()
+            ->values()
+            ->all();
+
+        return [
+            'version' => $version !== '' ? $version : null,
+            'date' => $date !== '' ? $date : null,
+            'items' => $items,
+        ];
     }
 
     public function updateLanguage(Request $request): RedirectResponse
