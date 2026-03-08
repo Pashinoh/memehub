@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+	[x-cloak] {
+		display: none !important;
+	}
+
 	* {
 		scrollbar-width: none;
 		-ms-overflow-style: none;

@@ -1,8 +1,8 @@
 <x-app-layout>
     <div class="max-w-4xl mx-auto px-4 py-8">
         <header class="mb-8">
-            <h1 class="text-3xl font-bold text-slate-100">Bookmarks</h1>
-            <p class="text-sm text-slate-300">Memes you saved</p>
+            <h1 class="text-3xl font-bold text-slate-100">{{ __('ui.bookmarks_title') }}</h1>
+            <p class="text-sm text-slate-300">{{ __('ui.bookmarks_subtitle') }}</p>
         </header>
 
         @if (session('status'))
@@ -23,11 +23,11 @@
                                     <h3 class="truncate text-lg font-semibold text-slate-100 hover:text-slate-200 transition">{{ $meme->title }}</h3>
                                 </a>
                                 <p class="mt-1 text-xs text-slate-400">
-                                    by
+                                    {{ __('ui.bookmarks_by') }}
                                     @if ($meme->user)
                                         <a href="{{ route('users.show', $meme->user) }}" class="font-medium hover:underline">{{ $meme->user->name }}</a>
                                     @else
-                                        <span class="font-medium">Anonymous</span>
+                                        <span class="font-medium">{{ __('ui.bookmarks_anonymous') }}</span>
                                     @endif
                                     · {{ $meme->created_at->diffForHumans() }}
                                 </p>
@@ -35,14 +35,14 @@
                             <form action="{{ route('memes.unbookmark', $meme) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="rounded-full border border-red-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/10" title="Remove bookmark">Delete</button>
+                                <button type="submit" class="rounded-full border border-red-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/10" title="{{ __('ui.bookmarks_remove_title') }}">{{ __('ui.bookmarks_delete') }}</button>
                             </form>
                         </div>
                     </div>
 
                     <div class="relative mx-auto flex aspect-square w-full items-center justify-center overflow-hidden bg-slate-800">
                         @if ($meme->isVideo())
-                            <video class="block h-full w-full object-contain object-center" data-custom-player="true" preload="metadata" playsinline oncontextmenu="return false;">
+                            <video class="block h-full w-full object-contain object-center" data-custom-player="true" preload="metadata" playsinline oncontextmenu="return false;" controls>
                                 <source src="{{ asset('storage/' . $meme->image_path) }}" type="{{ $meme->video_mime_type }}">
                             </video>
                         @else
@@ -79,8 +79,8 @@
                 </div>
             @else
                 <div class="text-center py-12">
-                    <p class="text-slate-300 mb-4">No bookmarks yet.</p>
-                    <a href="{{ route('memes.index') }}" class="inline-block rounded bg-slate-700 px-4 py-2 text-white hover:bg-slate-600">Explore memes</a>
+                    <p class="text-slate-300 mb-4">{{ __('ui.bookmarks_empty') }}</p>
+                    <a href="{{ route('memes.index') }}" class="inline-block rounded bg-slate-700 px-4 py-2 text-white hover:bg-slate-600">{{ __('ui.bookmarks_explore') }}</a>
                 </div>
             @endif
 

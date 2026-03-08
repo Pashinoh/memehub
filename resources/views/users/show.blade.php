@@ -72,14 +72,21 @@
 
             <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
                 @forelse ($memes as $meme)
+                    @php
+                        $isGif = strtolower(pathinfo((string) $meme->image_path, PATHINFO_EXTENSION)) === 'gif';
+                    @endphp
                     <div class="aspect-square overflow-hidden bg-slate-700 group relative">
                         <a href="{{ route('memes.show', $meme) }}" class="block w-full h-full">
                             @if ($meme->isVideo())
-                                <video class="object-cover w-full h-full bg-slate-700" muted playsinline preload="metadata" oncontextmenu="return false;">
+                                <video class="object-cover w-full h-full bg-slate-700" muted playsinline preload="metadata" oncontextmenu="return false;" disablepictureinpicture controlslist="nodownload noplaybackrate noremoteplayback">
                                     <source src="{{ asset('storage/' . $meme->image_path) }}" type="{{ $meme->video_mime_type }}">
                                 </video>
+                            @elseif ($isGif)
+                                <div class="flex h-full w-full items-center justify-center bg-slate-800 text-slate-300">
+                                    <span class="rounded border border-slate-500 px-2 py-0.5 text-xs font-semibold tracking-wide">GIF</span>
+                                </div>
                             @else
-                                <img src="{{ asset('storage/' . $meme->image_path) }}" alt="{{ $meme->title }}" class="object-cover w-full h-full transition group-hover:scale-105 bg-slate-700" loading="lazy">
+                                <img src="{{ asset('storage/' . $meme->image_path) }}" alt="{{ $meme->title }}" class="object-cover w-full h-full bg-slate-700" loading="lazy">
                             @endif
                             <div class="absolute inset-0 hidden sm:flex opacity-0 group-hover:opacity-100 transition bg-black/40 items-center justify-center gap-5 text-white text-sm font-semibold">
                                 <span class="flex items-center gap-1">

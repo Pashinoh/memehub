@@ -42,85 +42,87 @@
         </div>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                if (document.getElementById('global-image-lightbox')) {
-                    return;
+                const zoomableImages = document.querySelectorAll('.js-zoomable-image');
+                const confirmDeleteForms = document.querySelectorAll('form[data-confirm-delete="true"]');
+                const customVideos = document.querySelectorAll('video[data-custom-player="true"]');
+
+                if (zoomableImages.length > 0 && !document.getElementById('global-image-lightbox')) {
+                    const lightbox = document.createElement('div');
+                    lightbox.id = 'global-image-lightbox';
+                    lightbox.className = 'fixed inset-0 z-[100] hidden items-center justify-center overflow-hidden bg-black/90 p-4';
+                    lightbox.innerHTML = `
+                        <button type="button" id="global-image-lightbox-close" class="absolute right-4 top-4 rounded-full border border-slate-500 px-3 py-1 text-sm text-slate-100 hover:bg-slate-800" aria-label="Close">✕</button>
+                        <div class="flex h-[62vh] max-h-[560px] w-[62vw] max-w-[760px] items-center justify-center overflow-hidden rounded-lg">
+                            <img id="global-image-lightbox-image" src="" alt="Preview" class="h-full w-full select-none object-contain transition-transform duration-200 ease-out" />
+                        </div>
+                        <p class="pointer-events-none absolute bottom-5 text-xs text-slate-300">Double click to zoom</p>
+                    `;
+                    document.body.appendChild(lightbox);
+
+                    const previewImage = document.getElementById('global-image-lightbox-image');
+                    const closeButton = document.getElementById('global-image-lightbox-close');
+
+                    let zoomed = false;
+
+                    const resetZoom = function () {
+                        zoomed = false;
+                        previewImage.style.transform = 'scale(1)';
+                        previewImage.style.transformOrigin = 'center center';
+                        previewImage.style.cursor = 'zoom-in';
+                    };
+
+                    const closeLightbox = function () {
+                        lightbox.classList.add('hidden');
+                        lightbox.classList.remove('flex');
+                        previewImage.src = '';
+                        resetZoom();
+                        document.body.classList.remove('overflow-hidden');
+                    };
+
+                    zoomableImages.forEach(function (image) {
+                        image.classList.add('cursor-zoom-in');
+                        image.addEventListener('click', function () {
+                            previewImage.src = image.src;
+                            previewImage.alt = image.alt || 'Preview';
+                            resetZoom();
+                            lightbox.classList.remove('hidden');
+                            lightbox.classList.add('flex');
+                            document.body.classList.add('overflow-hidden');
+                        });
+                    });
+
+                    previewImage.addEventListener('dblclick', function (event) {
+                        if (!zoomed) {
+                            const rect = previewImage.getBoundingClientRect();
+                            const x = ((event.clientX - rect.left) / rect.width) * 100;
+                            const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+                            previewImage.style.transformOrigin = `${x}% ${y}%`;
+                            previewImage.style.transform = 'scale(1.6)';
+                            previewImage.style.cursor = 'zoom-out';
+                            zoomed = true;
+                            return;
+                        }
+
+                        resetZoom();
+                    });
+
+                    lightbox.addEventListener('click', function (event) {
+                        if (event.target === lightbox) {
+                            closeLightbox();
+                        }
+                    });
+
+                    closeButton.addEventListener('click', closeLightbox);
+
+                    document.addEventListener('keydown', function (event) {
+                        if (event.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+                            closeLightbox();
+                        }
+                    });
                 }
 
-                const lightbox = document.createElement('div');
-                lightbox.id = 'global-image-lightbox';
-                lightbox.className = 'fixed inset-0 z-[100] hidden items-center justify-center overflow-hidden bg-black/90 p-4';
-                lightbox.innerHTML = `
-                    <button type="button" id="global-image-lightbox-close" class="absolute right-4 top-4 rounded-full border border-slate-500 px-3 py-1 text-sm text-slate-100 hover:bg-slate-800" aria-label="Close">✕</button>
-                    <div class="flex h-[62vh] max-h-[560px] w-[62vw] max-w-[760px] items-center justify-center overflow-hidden rounded-lg">
-                        <img id="global-image-lightbox-image" src="" alt="Preview" class="h-full w-full select-none object-contain transition-transform duration-200 ease-out" />
-                    </div>
-                    <p class="pointer-events-none absolute bottom-5 text-xs text-slate-300">Double click to zoom</p>
-                `;
-                document.body.appendChild(lightbox);
-
-                const previewImage = document.getElementById('global-image-lightbox-image');
-                const closeButton = document.getElementById('global-image-lightbox-close');
-
-                let zoomed = false;
-
-                const resetZoom = function () {
-                    zoomed = false;
-                    previewImage.style.transform = 'scale(1)';
-                    previewImage.style.transformOrigin = 'center center';
-                    previewImage.style.cursor = 'zoom-in';
-                };
-
-                const closeLightbox = function () {
-                    lightbox.classList.add('hidden');
-                    lightbox.classList.remove('flex');
-                    previewImage.src = '';
-                    resetZoom();
-                    document.body.classList.remove('overflow-hidden');
-                };
-
-                document.querySelectorAll('.js-zoomable-image').forEach(function (image) {
-                    image.classList.add('cursor-zoom-in');
-                    image.addEventListener('click', function () {
-                        previewImage.src = image.src;
-                        previewImage.alt = image.alt || 'Preview';
-                        resetZoom();
-                        lightbox.classList.remove('hidden');
-                        lightbox.classList.add('flex');
-                        document.body.classList.add('overflow-hidden');
-                    });
-                });
-
-                previewImage.addEventListener('dblclick', function (event) {
-                    if (!zoomed) {
-                        const rect = previewImage.getBoundingClientRect();
-                        const x = ((event.clientX - rect.left) / rect.width) * 100;
-                        const y = ((event.clientY - rect.top) / rect.height) * 100;
-
-                        previewImage.style.transformOrigin = `${x}% ${y}%`;
-                        previewImage.style.transform = 'scale(1.6)';
-                        previewImage.style.cursor = 'zoom-out';
-                        zoomed = true;
-                        return;
-                    }
-
-                    resetZoom();
-                });
-
-                lightbox.addEventListener('click', function (event) {
-                    if (event.target === lightbox) {
-                        closeLightbox();
-                    }
-                });
-
-                closeButton.addEventListener('click', closeLightbox);
-
-                document.addEventListener('keydown', function (event) {
-                    if (event.key === 'Escape' && !lightbox.classList.contains('hidden')) {
-                        closeLightbox();
-                    }
-                });
-
-                if (!document.getElementById('global-confirm-modal')) {
+                if (confirmDeleteForms.length > 0 && !document.getElementById('global-confirm-modal')) {
                     const confirmModal = document.createElement('div');
                     confirmModal.id = 'global-confirm-modal';
                     confirmModal.className = 'fixed inset-0 z-[110] hidden items-center justify-center bg-black/70 p-4';
@@ -159,7 +161,7 @@
                         document.body.classList.add('overflow-hidden');
                     };
 
-                    document.querySelectorAll('form[data-confirm-delete="true"]').forEach(function (form) {
+                    confirmDeleteForms.forEach(function (form) {
                         form.addEventListener('submit', function (event) {
                             if (form.dataset.confirmed === '1') {
                                 form.dataset.confirmed = '0';
@@ -197,7 +199,7 @@
                     });
                 }
 
-                if (!document.getElementById('custom-video-player-style')) {
+                if (customVideos.length > 0 && !document.getElementById('custom-video-player-style')) {
                     const playerStyle = document.createElement('style');
                     playerStyle.id = 'custom-video-player-style';
                     playerStyle.textContent = `
@@ -237,8 +239,92 @@
                     document.head.appendChild(playerStyle);
                 }
 
-                document.querySelectorAll('video[data-custom-player="true"]').forEach(function (video) {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const lowHardwareThreads = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+                const saveDataEnabled = Boolean(connection && connection.saveData);
+                const useLiteVideoMode = prefersReducedMotion || lowHardwareThreads || saveDataEnabled;
+                let isUploadModalOpen = false;
+
+                window.addEventListener('upload-modal-state', function (event) {
+                    isUploadModalOpen = Boolean(event?.detail?.open);
+                    if (!isUploadModalOpen) {
+                        return;
+                    }
+
+                    document.querySelectorAll('video[data-feed-autoloop="true"]').forEach(function (video) {
+                        if (!video.paused) {
+                            video.pause();
+                        }
+                    });
+                });
+
+                const setupFeedAutoLoop = function (video) {
+                    if (video.dataset.feedAutoloop !== 'true') {
+                        return;
+                    }
+
+                    let manualControl = false;
+                    video.loop = true;
+                    video.muted = true;
+                    video.defaultMuted = true;
+
+                    video.addEventListener('pointerdown', function () {
+                        manualControl = true;
+                    });
+
+                    const tryPlay = function () {
+                        if (manualControl || isUploadModalOpen) {
+                            return;
+                        }
+
+                        video.play().catch(function () {});
+                    };
+
+                    if ('IntersectionObserver' in window) {
+                        const autoLoopObserver = new IntersectionObserver(function (entries) {
+                            entries.forEach(function (entry) {
+                                if (manualControl) {
+                                    return;
+                                }
+
+                                if (isUploadModalOpen) {
+                                    if (!video.paused) {
+                                        video.pause();
+                                    }
+                                    return;
+                                }
+
+                                if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+                                    tryPlay();
+                                } else if (!video.paused) {
+                                    video.pause();
+                                }
+                            });
+                        }, {
+                            threshold: [0, 0.2, 0.6, 1],
+                        });
+
+                        autoLoopObserver.observe(video);
+                        return;
+                    }
+
+                    tryPlay();
+                };
+
+                customVideos.forEach(function (video) {
+                    setupFeedAutoLoop(video);
+
                     if (video.dataset.customPlayerReady === '1') {
+                        return;
+                    }
+
+                    if (useLiteVideoMode) {
+                        video.dataset.customPlayerReady = '1';
+                        video.controls = true;
+                        video.preload = 'metadata';
+                        video.setAttribute('controlsList', 'nodownload noremoteplayback');
+                        video.setAttribute('disablePictureInPicture', '');
                         return;
                     }
 

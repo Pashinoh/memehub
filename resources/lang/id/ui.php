@@ -95,6 +95,15 @@ return [
     'home_sidebar_interests' => 'Minat',
     'home_empty_state' => 'Jadilah yang pertama mengunggah meme.',
 
+    'bookmarks_title' => 'Bookmark',
+    'bookmarks_subtitle' => 'Meme yang Anda simpan',
+    'bookmarks_by' => 'oleh',
+    'bookmarks_anonymous' => 'Anonim',
+    'bookmarks_delete' => 'Hapus',
+    'bookmarks_remove_title' => 'Hapus bookmark',
+    'bookmarks_empty' => 'Belum ada bookmark.',
+    'bookmarks_explore' => 'Jelajahi meme',
+
     'nav_moderation' => 'Moderasi',
 
     'moderation_title' => 'Moderasi Laporan',

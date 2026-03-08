@@ -95,6 +95,15 @@ return [
     'home_sidebar_interests' => 'Interests',
     'home_empty_state' => 'Be the first to upload a meme.',
 
+    'bookmarks_title' => 'Bookmarks',
+    'bookmarks_subtitle' => 'Memes you saved',
+    'bookmarks_by' => 'by',
+    'bookmarks_anonymous' => 'Anonymous',
+    'bookmarks_delete' => 'Delete',
+    'bookmarks_remove_title' => 'Remove bookmark',
+    'bookmarks_empty' => 'No bookmarks yet.',
+    'bookmarks_explore' => 'Explore memes',
+
     'nav_moderation' => 'Moderation',
 
     'moderation_title' => 'Report Moderation',

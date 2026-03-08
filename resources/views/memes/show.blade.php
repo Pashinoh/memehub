@@ -13,7 +13,7 @@
         <article class="mx-auto max-w-[680px] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-sm">
             <div class="relative mx-auto flex h-[440px] w-[440px] max-w-full items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800">
                 @if ($meme->isVideo())
-                    <video class="block h-full w-full object-contain object-center" data-custom-player="true" preload="metadata" playsinline oncontextmenu="return false;">
+                    <video class="block h-full w-full object-contain object-center" data-custom-player="true" preload="metadata" playsinline oncontextmenu="return false;" controls>
                         <source src="{{ asset('storage/' . $meme->image_path) }}" type="{{ $meme->video_mime_type }}">
                     </video>
                 @else

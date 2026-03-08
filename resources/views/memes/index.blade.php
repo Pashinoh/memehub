@@ -16,7 +16,135 @@
             ['label' => 'Memes', 'tag' => 'memes', 'icon' => '💎'],
         ];
     @endphp
-    <div x-data="{ openUpload: {{ ($errors->any() || request('upload')) ? 'true' : 'false' }} }" class="max-w-6xl mx-auto px-4 py-12 sm:py-16">
+    <div
+        x-data="{
+            openUpload: {{ ($errors->any() || request('upload')) ? 'true' : 'false' }},
+            uploading: false,
+            uploadProgress: 0,
+            uploadError: '',
+            previewUrl: '',
+            previewType: '',
+            selectedFileName: '',
+            init() {
+                this.$nextTick(() => {
+                    if (this.openUpload) {
+                        this.pauseBackgroundVideos();
+                        window.dispatchEvent(new CustomEvent('upload-modal-state', { detail: { open: true } }));
+                    }
+                });
+                this.$watch('openUpload', (isOpen) => {
+                    if (isOpen) {
+                        this.pauseBackgroundVideos();
+                    }
+                    window.dispatchEvent(new CustomEvent('upload-modal-state', { detail: { open: isOpen } }));
+                });
+            },
+            pauseBackgroundVideos() {
+                document.querySelectorAll('video').forEach((video) => {
+                    if (video.dataset.uploadPreview === 'true') {
+                        return;
+                    }
+                    if (!video.paused) {
+                        video.pause();
+                    }
+                });
+            },
+            updatePreview(event) {
+                const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+                if (!file) {
+                    if (this.previewUrl) {
+                        URL.revokeObjectURL(this.previewUrl);
+                    }
+                    this.previewUrl = '';
+                    this.previewType = '';
+                    this.selectedFileName = '';
+                    return;
+                }
+
+                if (this.previewUrl) {
+                    URL.revokeObjectURL(this.previewUrl);
+                }
+
+                this.previewUrl = URL.createObjectURL(file);
+                this.previewType = file.type || '';
+                this.selectedFileName = file.name || '';
+            },
+            submitUpload(event) {
+                if (this.uploading) {
+                    return;
+                }
+
+                const form = event.target;
+                const data = new FormData(form);
+                const csrfToken = document.querySelector('meta[name=\'csrf-token\']')?.getAttribute('content') || '';
+
+                this.uploadError = '';
+                this.uploading = true;
+                this.uploadProgress = 0;
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', form.action, true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.setRequestHeader('Accept', 'application/json');
+                if (csrfToken !== '') {
+                    xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
+                }
+
+                xhr.upload.onprogress = (progressEvent) => {
+                    if (!progressEvent.lengthComputable) {
+                        return;
+                    }
+
+                    this.uploadProgress = Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100));
+                };
+
+                xhr.onload = () => {
+                    this.uploading = false;
+
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        let payload = null;
+                        try {
+                            payload = JSON.parse(xhr.responseText || '{}');
+                        } catch (e) {
+                            payload = null;
+                        }
+
+                        if (this.previewUrl) {
+                            URL.revokeObjectURL(this.previewUrl);
+                        }
+                        this.previewUrl = '';
+                        this.previewType = '';
+                        window.location.href = payload && payload.redirect ? payload.redirect : '{{ route('memes.index') }}';
+                        return;
+                    }
+
+                    if (xhr.status === 422) {
+                        try {
+                            const payload = JSON.parse(xhr.responseText || '{}');
+                            const errors = payload.errors || {};
+                            const firstKey = Object.keys(errors)[0];
+                            if (firstKey && Array.isArray(errors[firstKey]) && errors[firstKey][0]) {
+                                this.uploadError = errors[firstKey][0];
+                                return;
+                            }
+                        } catch (e) {
+                            // Fall through to generic message.
+                        }
+                    }
+
+                    this.uploadError = 'Upload gagal. Coba lagi.';
+                };
+
+                xhr.onerror = () => {
+                    this.uploading = false;
+                    this.uploadError = 'Koneksi bermasalah saat upload. Coba lagi.';
+                };
+
+                xhr.send(data);
+            }
+        }"
+        class="max-w-6xl mx-auto px-4 py-12 sm:py-16"
+    >
         <header class="mb-8">
             <h1 class="text-3xl font-semibold tracking-wide uppercase text-slate-100">MemeHub</h1>
             <p class="text-sm text-slate-300">Drop memes, get laughs.</p>
@@ -65,24 +193,46 @@
                     </div>
                 </div>
                 <div class="mx-auto max-w-3xl px-4 py-6">
-                <form action="{{ route('memes.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+                <form action="{{ route('memes.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6" @submit.prevent="submitUpload($event)">
                     @csrf
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Title</label>
-                        <input type="text" name="title" value="{{ old('title') }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring" placeholder="Why is the cat like this?" required>
-                        @error('title')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
+                    <div class="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Media (Image/Video)</label>
+                            <input id="upload-media-input" type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/x-m4v" @change="updatePreview($event)" class="sr-only" required>
+                            <label for="upload-media-input" class="mt-1 flex aspect-square w-full max-w-[220px] cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/80 p-3 transition hover:border-slate-400 hover:bg-slate-900">
+                                <div x-show="!previewUrl" x-cloak class="flex h-full w-full flex-col items-center justify-center text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="mb-2 h-7 w-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-sm font-medium text-slate-200">Pilih File</p>
+                                    <p class="mt-1 text-[11px] text-slate-400">Maks 15MB</p>
+                                </div>
+                                <div x-show="previewUrl" x-cloak class="h-full w-full">
+                                    <img x-show="previewType.startsWith('image/')" :src="previewUrl" alt="Preview" class="h-full w-full rounded-lg object-cover" />
+                                    <video x-show="previewType.startsWith('video/')" data-upload-preview="true" :src="previewUrl" class="h-full w-full rounded-lg object-cover" controls muted playsinline preload="metadata"></video>
+                                </div>
+                            </label>
+                            <p x-show="selectedFileName" x-text="selectedFileName" class="mt-2 max-w-[220px] truncate text-xs text-sky-300"></p>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">JPG/PNG -> WEBP, GIF tetap animasi.</p>
+                            @error('image')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p x-show="uploadError" x-text="uploadError" class="mt-2 text-sm text-red-500"></p>
+                        </div>
+
+                        <div class="space-y-4 rounded-xl border border-slate-700 bg-slate-900/60 p-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Title</label>
+                                <input type="text" name="title" value="{{ old('title') }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring" placeholder="Tulis judul singkat yang menarik..." required>
+                                <p class="mt-1 text-xs text-slate-500">Judul akan tampil di feed dan halaman detail.</p>
+                                @error('title')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Media (Image/Video)</label>
-                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif,video/mp4,video/webm,video/x-m4v,video/quicktime,.mov" class="w-full rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm" required>
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Images: JPG, PNG, WEBP, GIF, HEIC/HEIF. Videos: MP4, WebM, M4V, MOV (MOV auto-converted to MP4, max 50MB).</p>
-                        @error('image')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div x-data="{ showTagSuggestions: false, suggestions: ['indonesia', 'anime', 'gaming', 'dark humor', 'memes'] }" @click.outside="showTagSuggestions = false" class="relative">
+
+                    <div x-data="{ showTagSuggestions: false, suggestions: ['indonesia', 'anime', 'gaming', 'dark humor', 'memes'] }" @click.outside="showTagSuggestions = false" class="relative rounded-xl border border-slate-700 bg-slate-900/60 p-4">
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Tags (optional)</label>
                         <input x-ref="tagsInput" @focus="showTagSuggestions = true" @click="showTagSuggestions = true" type="text" name="tags" value="{{ old('tags') }}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring" placeholder="kucing, lucu, aneh">
                         <div x-show="showTagSuggestions" x-transition class="mt-2 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900" style="display: none;">
@@ -109,9 +259,15 @@
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
+                    <div x-show="uploading" x-cloak class="space-y-1">
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                            <div class="h-full bg-sky-500 transition-all" :style="`width: ${uploadProgress}%`"></div>
+                        </div>
+                        <p class="text-xs text-slate-400" x-text="`Uploading ${uploadProgress}%`"></p>
+                    </div>
                     <div class="flex items-center justify-end gap-2 pt-2">
                         <a href="{{ route('memes.index', $closeParams) }}" class="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</a>
-                        <button type="submit" class="rounded-lg bg-slate-700 px-4 py-2 text-white transition hover:bg-slate-600">Post meme</button>
+                        <button type="submit" :disabled="uploading" class="rounded-lg bg-slate-700 px-4 py-2 text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-60" x-text="uploading ? 'Uploading...' : 'Post meme'"></button>
                     </div>
                 </form>
                 </div>
@@ -263,7 +419,7 @@
 
                     <div class="relative mx-auto flex aspect-square w-full items-center justify-center overflow-hidden bg-slate-800">
                         @if ($meme->isVideo())
-                            <video class="block h-full w-full object-contain object-center" data-custom-player="true" preload="metadata" playsinline oncontextmenu="return false;">
+                            <video class="block h-full w-full object-contain object-center" data-custom-player="true" data-feed-autoloop="true" preload="metadata" playsinline oncontextmenu="return false;" controls>
                                 <source src="{{ asset('storage/' . $meme->image_path) }}" type="{{ $meme->video_mime_type }}">
                             </video>
                         @else
