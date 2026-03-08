@@ -61,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/reports', [ReportModerationController::class, 'index'])->name('reports.index');
         Route::patch('/reports/{report}', [ReportModerationController::class, 'update'])->name('reports.update');
+        Route::patch('/contact-messages/{contactMessage}', [ReportModerationController::class, 'updateContactMessage'])->name('contact-messages.update');
     });
 });
 

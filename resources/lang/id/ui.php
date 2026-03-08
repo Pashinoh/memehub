@@ -107,8 +107,10 @@ return [
     'nav_moderation' => 'Moderasi',
 
     'moderation_title' => 'Moderasi Laporan',
-    'moderation_subtitle' => 'Kelola laporan konten dari pengguna.',
+    'moderation_subtitle' => 'Kelola laporan konten dan pesan kontak dari pengguna.',
     'moderation_back_feed' => 'Kembali ke Feed',
+    'moderation_source_reports' => 'Laporan',
+    'moderation_source_contacts' => 'Pesan Kontak',
     'moderation_tab_pending' => 'Pending',
     'moderation_tab_reviewed' => 'Reviewed',
     'moderation_tab_rejected' => 'Rejected',
@@ -121,7 +123,13 @@ return [
     'moderation_reviewer_fallback' => 'admin',
     'moderation_note_placeholder' => 'Catatan moderator (opsional)',
     'moderation_save' => 'Simpan',
-    'moderation_empty' => 'Tidak ada laporan pada status ini.',
+    'moderation_empty_reports' => 'Tidak ada laporan pada status ini.',
+    'moderation_empty_contacts' => 'Tidak ada pesan kontak pada status ini.',
+    'moderation_contact_sender' => 'Pengirim',
+    'moderation_contact_email' => 'Email',
+    'moderation_contact_subject' => 'Subjek',
+    'moderation_contact_screenshot' => 'Lampiran',
+    'moderation_contact_view_screenshot' => 'Lihat screenshot',
 
     'user_no_memes' => 'Belum ada meme.',
 ];

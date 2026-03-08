@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.3.5] - 2026-03-08
+
+### Changed
+- Admin moderation is now unified into one panel with source tabs for `Reports` and `Contact Messages`.
+- Moderation status tabs (`Pending`, `Reviewed`, `Rejected`) now work consistently for both reports and contact messages.
+
+### Added
+- New admin endpoint to update contact message moderation status directly from the moderation panel.
+- Contact-message specific moderation fields and localized labels in Indonesian and English.
+
 ## [v1.3.4] - 2026-03-08
 
 ### Changed

@@ -107,8 +107,10 @@ return [
     'nav_moderation' => 'Moderation',
 
     'moderation_title' => 'Report Moderation',
-    'moderation_subtitle' => 'Manage content reports from users.',
+    'moderation_subtitle' => 'Manage content reports and contact messages from users.',
     'moderation_back_feed' => 'Back to Feed',
+    'moderation_source_reports' => 'Reports',
+    'moderation_source_contacts' => 'Contact Messages',
     'moderation_tab_pending' => 'Pending',
     'moderation_tab_reviewed' => 'Reviewed',
     'moderation_tab_rejected' => 'Rejected',
@@ -121,7 +123,13 @@ return [
     'moderation_reviewer_fallback' => 'admin',
     'moderation_note_placeholder' => 'Moderator note (optional)',
     'moderation_save' => 'Save',
-    'moderation_empty' => 'No reports for this status.',
+    'moderation_empty_reports' => 'No reports for this status.',
+    'moderation_empty_contacts' => 'No contact messages for this status.',
+    'moderation_contact_sender' => 'Sender',
+    'moderation_contact_email' => 'Email',
+    'moderation_contact_subject' => 'Subject',
+    'moderation_contact_screenshot' => 'Attachment',
+    'moderation_contact_view_screenshot' => 'View screenshot',
 
     'user_no_memes' => 'No memes yet.',
 ];
