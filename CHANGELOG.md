@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.3.6] - 2026-03-10
+
+### Fixed
+- Bookmark toggle on meme detail page now updates instantly (AJAX) without full page reload, matching the upvote interaction pattern.
+
+### Changed
+- Upload pipeline now applies lightweight media optimization for low-resource deployments:
+- Images are encoded to `WEBP` with configurable quality.
+- Large videos are compressed with `ffmpeg` using server-friendly defaults and safe fallback to original files.
+- Large GIF uploads can be converted to lighter animated `WEBP` output with safe fallback.
+- Added environment-driven media compression settings and `ffmpeg` binary compatibility for both `FFMPEG_BIN` and `FFMPEG_BINARY`.
+
 ## [v1.3.5] - 2026-03-08
 
 ### Changed

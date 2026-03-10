@@ -6,7 +6,7 @@
 
 A Laravel-based meme-sharing platform with Google Login, media uploads, reporting workflow, and admin moderation.
 
-Current version: `v1.3.5`
+Current version: `v1.3.6`
 
 ## Documentation
 

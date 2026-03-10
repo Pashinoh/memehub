@@ -8,8 +8,10 @@ use App\Notifications\MemeUpvotedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
+use Symfony\Component\Process\Process;
 
 class MemeController extends Controller
 {
@@ -66,12 +68,15 @@ class MemeController extends Controller
 
     public function store(Request $request)
     {
+        $uploadMaxKb = max(1024, (int) config('services.media.upload_max_kb', 30720));
+        $uploadMaxMb = (int) ceil($uploadMaxKb / 1024);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:120'],
-            'image' => ['required', 'file', 'max:15360', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/x-m4v'],
+            'image' => ['required', 'file', 'max:' . $uploadMaxKb, 'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/x-m4v'],
             'tags' => ['nullable', 'string', 'max:200'],
         ], [
-            'image.max' => 'Ukuran file maksimal 15MB agar upload tetap ringan.',
+            'image.max' => 'Ukuran file maksimal ' . $uploadMaxMb . 'MB. Video akan dikompres otomatis bila perlu.',
             'image.mimetypes' => 'Format media tidak didukung. Gunakan JPG, PNG, WEBP, GIF, MP4, WebM, atau M4V (tanpa MOV).',
         ]);
 
@@ -81,10 +86,7 @@ class MemeController extends Controller
         if (str_starts_with($mimeType, 'video/')) {
             $path = $this->storeLightweightVideo($upload);
         } elseif ($mimeType === 'image/gif') {
-            // Keep GIF as-is to preserve animation frames.
-            $filename = Str::uuid() . '.gif';
-            Storage::disk('public')->putFileAs('memes', $upload, $filename);
-            $path = 'memes/' . $filename;
+            $path = $this->storeLightweightGif($upload);
         } else {
             $image = Image::make($upload)->orientate();
             $image->resize(1280, 1280, function ($constraint) {
@@ -94,7 +96,8 @@ class MemeController extends Controller
 
             $filename = Str::uuid() . '.webp';
             $path = 'memes/' . $filename;
-            Storage::disk('public')->put($path, $image->encode('webp', 70));
+            $imageQuality = max(50, min(90, (int) config('services.media.image_webp_quality', 74)));
+            Storage::disk('public')->put($path, $image->encode('webp', $imageQuality));
         }
 
         $meme = Meme::create([
@@ -136,15 +139,235 @@ class MemeController extends Controller
 
     private function storeLightweightVideo($upload): string
     {
+        $disk = Storage::disk('public');
+        $disk->makeDirectory('memes');
+
+        $originalSize = (int) $upload->getSize();
+        $minCompressKb = max(512, (int) config('services.media.video_compress_min_kb', 6144));
+        $shouldCompress = $originalSize >= ($minCompressKb * 1024);
+
+        $compressedFilename = Str::uuid() . '.mp4';
+        $compressedPath = 'memes/' . $compressedFilename;
+        $compressedAbsolutePath = $disk->path($compressedPath);
+
+        if ($shouldCompress && $this->compressVideoWithFfmpeg((string) $upload->getRealPath(), $compressedAbsolutePath)) {
+            return $compressedPath;
+        }
+
         $extension = strtolower((string) $upload->getClientOriginalExtension());
         if ($extension === '') {
             $extension = 'mp4';
         }
 
         $filename = Str::uuid() . '.' . $extension;
-        Storage::disk('public')->putFileAs('memes', $upload, $filename);
+        $disk->putFileAs('memes', $upload, $filename);
 
         return 'memes/' . $filename;
+    }
+
+    private function storeLightweightGif($upload): string
+    {
+        $disk = Storage::disk('public');
+        $disk->makeDirectory('memes');
+
+        $originalSize = (int) $upload->getSize();
+        $minCompressKb = max(512, (int) config('services.media.gif_compress_min_kb', 4096));
+        $shouldCompress = $originalSize >= ($minCompressKb * 1024);
+
+        if ($shouldCompress) {
+            $optimizedFilename = Str::uuid() . '.webp';
+            $optimizedPath = 'memes/' . $optimizedFilename;
+            $optimizedAbsolutePath = $disk->path($optimizedPath);
+
+            if ($this->compressGifWithFfmpeg((string) $upload->getRealPath(), $optimizedAbsolutePath)) {
+                return $optimizedPath;
+            }
+        }
+
+        // Fallback: keep original GIF animation as-is.
+        $filename = Str::uuid() . '.gif';
+        $disk->putFileAs('memes', $upload, $filename);
+
+        return 'memes/' . $filename;
+    }
+
+    private function compressVideoWithFfmpeg(string $inputPath, string $outputPath): bool
+    {
+        if ($inputPath === '' || ! is_file($inputPath)) {
+            return false;
+        }
+
+        $binary = $this->resolveFfmpegBinary();
+        if ($binary === null) {
+            return false;
+        }
+
+        $videoScaleWidth = max(480, (int) config('services.media.video_scale_max_width', 960));
+        $videoPreset = trim((string) config('services.media.video_preset', 'superfast')) ?: 'superfast';
+        $videoCrf = max(24, min(40, (int) config('services.media.video_crf', 30)));
+        $videoMaxrate = trim((string) config('services.media.video_maxrate', '900k')) ?: '900k';
+        $videoBufsize = trim((string) config('services.media.video_bufsize', '1800k')) ?: '1800k';
+        $videoThreads = max(1, min(2, (int) config('services.media.video_threads', 1)));
+        $videoAudioBitrate = trim((string) config('services.media.video_audio_bitrate', '80k')) ?: '80k';
+        $videoTimeout = max(30, (int) config('services.media.video_timeout_seconds', 90));
+
+        $process = new Process([
+            $binary,
+            '-y',
+            '-i',
+            $inputPath,
+            '-vf',
+            'scale=min(' . $videoScaleWidth . ',iw):-2',
+            '-c:v',
+            'libx264',
+            '-preset',
+            $videoPreset,
+            '-crf',
+            (string) $videoCrf,
+            '-maxrate',
+            $videoMaxrate,
+            '-bufsize',
+            $videoBufsize,
+            '-threads',
+            (string) $videoThreads,
+            '-pix_fmt',
+            'yuv420p',
+            '-c:a',
+            'aac',
+            '-b:a',
+            $videoAudioBitrate,
+            '-movflags',
+            '+faststart',
+            $outputPath,
+        ]);
+
+        $process->setTimeout($videoTimeout);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            Log::warning('Video compression failed, storing original file.', [
+                'error' => $process->getErrorOutput(),
+            ]);
+
+            return false;
+        }
+
+        if (! is_file($outputPath) || (int) filesize($outputPath) <= 0) {
+            return false;
+        }
+
+        $inputSize = (int) @filesize($inputPath);
+        $outputSize = (int) @filesize($outputPath);
+
+        if ($inputSize > 0 && $outputSize >= $inputSize) {
+            @unlink($outputPath);
+            return false;
+        }
+
+        return true;
+    }
+
+    private function resolveFfmpegBinary(): ?string
+    {
+        $configured = trim((string) config('services.ffmpeg.binary', ''));
+        if ($configured !== '' && $this->isFfmpegUsable($configured)) {
+            return $configured;
+        }
+
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        $candidates = $isWindows
+            ? ['ffmpeg.exe', 'ffmpeg', 'C:\\Users\\ASUS\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe']
+            : ['ffmpeg'];
+
+        foreach ($candidates as $candidate) {
+            if ($this->isFfmpegUsable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        if ($isWindows) {
+            $whereProcess = new Process(['where.exe', 'ffmpeg']);
+            $whereProcess->setTimeout(5);
+            $whereProcess->run();
+
+            if ($whereProcess->isSuccessful()) {
+                $lines = preg_split('/\r\n|\r|\n/', trim($whereProcess->getOutput())) ?: [];
+                foreach ($lines as $line) {
+                    $binary = trim($line);
+                    if ($binary !== '' && $this->isFfmpegUsable($binary)) {
+                        return $binary;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function isFfmpegUsable(string $binary): bool
+    {
+        $probe = new Process([$binary, '-version']);
+        $probe->setTimeout(5);
+        $probe->run();
+
+        return $probe->isSuccessful();
+    }
+
+    private function compressGifWithFfmpeg(string $inputPath, string $outputPath): bool
+    {
+        if ($inputPath === '' || ! is_file($inputPath)) {
+            return false;
+        }
+
+        $binary = $this->resolveFfmpegBinary();
+        if ($binary === null) {
+            return false;
+        }
+
+        $gifFps = max(6, min(15, (int) config('services.media.gif_fps', 10)));
+        $gifScaleWidth = max(360, (int) config('services.media.gif_scale_max_width', 720));
+        $gifThreads = max(1, min(2, (int) config('services.media.gif_threads', 1)));
+        $gifTimeout = max(20, (int) config('services.media.gif_timeout_seconds', 60));
+
+        $process = new Process([
+            $binary,
+            '-y',
+            '-i',
+            $inputPath,
+            '-vf',
+            'fps=' . $gifFps . ',scale=min(' . $gifScaleWidth . ',iw):-2:flags=lanczos',
+            '-loop',
+            '0',
+            '-an',
+            '-threads',
+            (string) $gifThreads,
+            $outputPath,
+        ]);
+
+        $process->setTimeout($gifTimeout);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            Log::warning('GIF compression failed, storing original file.', [
+                'error' => $process->getErrorOutput(),
+            ]);
+
+            return false;
+        }
+
+        if (! is_file($outputPath) || (int) filesize($outputPath) <= 0) {
+            return false;
+        }
+
+        $inputSize = (int) @filesize($inputPath);
+        $outputSize = (int) @filesize($outputPath);
+
+        if ($inputSize > 0 && $outputSize >= $inputSize) {
+            @unlink($outputPath);
+            return false;
+        }
+
+        return true;
     }
 
     public function upvote(Meme $meme, Request $request)
